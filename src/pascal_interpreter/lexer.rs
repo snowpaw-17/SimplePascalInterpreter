@@ -123,7 +123,7 @@ impl<'a> Lexer<'a> {
             
             if ch.is_alphabetic() {
                 let identifier = self.get_identifier();
-                let entry = self.reserved_keywords.get(&identifier); 
+                let entry = self.reserved_keywords.get(&identifier.to_uppercase()); 
                 let token_type = entry.map(|x| x.to_owned()).unwrap_or(TokenType::Identifier);
                 return Ok(Token::new(token_type, Literal::from_str(identifier), self.line, self.col));   
             }
