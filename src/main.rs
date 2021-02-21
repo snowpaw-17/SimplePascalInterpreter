@@ -142,6 +142,28 @@ mod tests {
     }
 
     #[test]
+    fn test_missing_variable() {
+        let program = r#"
+            PROGRAM Main;
+
+                PROCEDURE Alpha(a : INTEGER; b : INTEGER);
+                    VAR x : INTEGER;
+                BEGIN
+                    x := (a + b ) * 2 + x;
+                END;
+
+            BEGIN { Main }
+
+                Alpha(3 + 5, 7);  { procedure call }
+
+            END.  { Main }
+        "#;
+
+        let result = interpret_text(program);
+        assert_eq!(result, Err(RuntimeError::UndefinedVariable("x".to_string())));
+    }
+
+    #[test]
     fn test_procedure_nested_call() {
         let program = r#"
             PROGRAM Main;

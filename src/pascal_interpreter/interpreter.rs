@@ -76,7 +76,10 @@ impl NodeVisitor for Interpreter {
         let var_name = visitable.name.literal().to_str().ok_or(RuntimeError::IllformedVarExpr)?;
         
         let ar = self.peek_mut().ok_or(RuntimeError::StackUnderflow)?;
-        Ok(ar.get_item(var_name).map(|v| v.to_owned()))
+        let result = ar.get_item(var_name)
+            .map(|v| Some(v.to_owned()))
+            .ok_or(RuntimeError::UndefinedVariable(var_name.to_string()));
+        result
     }    
 
      fn visit_assignment(&mut self, visitable: &mut AssignmentNode) -> Result<Option<Literal>, RuntimeError> {
