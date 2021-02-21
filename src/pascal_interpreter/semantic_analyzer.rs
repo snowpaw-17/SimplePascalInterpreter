@@ -38,13 +38,8 @@ impl SemanticAnalyzer {
         self.current_scope.as_ref().as_ref().and_then(|s| s.symbols.get(name))
     }
 
-    fn set_current_scope(&mut self, scope: symbols::ScopedSymbolTable) {
-        self.current_scope = Rc::from(Some(scope));
-    }
-
-    // will panic if there's no enclosing scope to restore
-    fn restore_previous_scope(&mut self) {
-        unimplemented!()
+    fn get_current_scope_level(&self) -> u32 {
+        self.current_scope.as_ref().as_ref().map(|s| s.nesting_level).unwrap_or(0u32)
     }
 }
 
@@ -86,13 +81,12 @@ impl NodeVisitor for SemanticAnalyzer {
 
     fn visit_program(&mut self, visitable: &mut ProgramNode) -> Result<Option<Literal>, RuntimeError> {
         let program_scope = Rc::from(
-            Some(symbols::ScopedSymbolTable::from(String::from("global"), 1u32, Rc::from(None)))
+            Some(symbols::ScopedSymbolTable::from(String::from("global"), self.get_current_scope_level() + 1, Rc::from(None)))
         );
         self.current_scope = program_scope;
         self.visit_block(&mut visitable.block)?;
         
         self.current_scope = self.current_scope.as_ref().as_ref().unwrap().enclosing_scope.clone();
-        println!("Ref count is {}", Rc::strong_count(&self.current_scope));
 
         Ok(None)
     }
@@ -118,14 +112,15 @@ impl NodeVisitor for SemanticAnalyzer {
             
         }?;
         
+        let level = self.get_current_scope_level();
         match &type_symbol {
-             Some(symbols::Symbol::Builtin(internal_type)) => { 
-                 let var_symbol = symbols::Symbol::Var(internal_type.clone());
-                 self.define_symbol(variable_name, var_symbol);
-                 Ok(None)
-             },
-             Some(_) => Err(RuntimeError::IllformedVarExpr),
-             None => Err(RuntimeError::UnknownType(type_name.to_owned()))
+            Some(symbols::Symbol::Builtin(internal_type, _level)) => { 
+                let var_symbol = symbols::Symbol::Var(internal_type.clone(), level);
+                self.define_symbol(variable_name, var_symbol);
+                Ok(None)
+            },
+            Some(_) => Err(RuntimeError::IllformedVarExpr),
+            None => Err(RuntimeError::UnknownType(type_name.to_owned()))
          }        
     }
 
@@ -143,22 +138,21 @@ impl NodeVisitor for SemanticAnalyzer {
         }
 
         let proc_name = visitable.name.to_str().unwrap();
-        let procedure_symbol = symbols::Symbol::Procedure(params.clone(), visitable.block.clone());
+        let procedure_symbol = symbols::Symbol::Procedure(params.clone(), self.get_current_scope_level(), visitable.block.clone());
         self.define_symbol(proc_name, procedure_symbol);
     
         let procedure_scope = Rc::from(
-            Some(symbols::ScopedSymbolTable::from(proc_name.to_lowercase(), 2, self.current_scope.clone()))
+            Some(symbols::ScopedSymbolTable::from(proc_name.to_lowercase(), self.get_current_scope_level() + 1, self.current_scope.clone()))
         );
         self.current_scope = procedure_scope;
        
         for (param_name, param_type) in &params {
-            let var_symbol = symbols::Symbol::Var(param_type.clone());
+            let var_symbol = symbols::Symbol::Var(param_type.clone(), self.get_current_scope_level());
             self.define_symbol(&param_name, var_symbol);
         }
 
         self.visit_block(&mut visitable.block)?;
         self.current_scope = self.current_scope.as_ref().as_ref().unwrap().enclosing_scope.clone();
-        println!("Ref count is {}", Rc::strong_count(&self.current_scope));
         Ok(None)
     }
 

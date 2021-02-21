@@ -12,27 +12,29 @@ pub enum Type
 
 #[derive(Clone)]
 pub enum Symbol {
-    Builtin(Type),
-    Var(Type),
-    Procedure(Vec<(String, Type)>,  BlockNode), // params
+    Builtin(Type, u32),
+    Var(Type, u32),
+    Procedure(Vec<(String, Type)>, u32,  BlockNode), // params
 }
 
 //#[derive(Clone)]
 pub struct ScopedSymbolTable {
-    name: String,
-    nesting_level: u32,
+    pub name: String,
+    pub nesting_level: u32,
     pub symbols : HashMap<String, Symbol>,
     pub enclosing_scope: Rc<Option<ScopedSymbolTable>>
 }
 
 impl ScopedSymbolTable {
     pub fn from(name: String, level: u32, enclosing_scope: Rc<Option<ScopedSymbolTable>>) -> Self {
-        ScopedSymbolTable{
+        let mut result = ScopedSymbolTable{
             name: name, 
             nesting_level: level, 
-            symbols: ScopedSymbolTable::init_builtin_symbols(),
+            symbols: HashMap::new(),
             enclosing_scope: enclosing_scope
-        }
+        };
+        result.init_builtin_symbols();
+        result
     }
 
     pub fn define_symbol(&mut self, name : &str, value : Symbol) {
@@ -45,11 +47,8 @@ impl ScopedSymbolTable {
         )
     }
 
-    fn init_builtin_symbols() -> HashMap<String, Symbol> {
-        // self.current_scope.insert(symbols::Symbol::Builtin(SymbolDefinition{name: "Integer", internal_type: symbols::Type::Integer}), )
-        let mut result = HashMap::new();
-        result.insert(String::from("integer"), Symbol::Builtin(Type::Integer));
-        result.insert(String::from("real"), Symbol::Builtin(Type::Float));
-        result
+    fn init_builtin_symbols(&mut self)  {
+        self.symbols.insert(String::from("integer"), Symbol::Builtin(Type::Integer, self.nesting_level));
+        self.symbols.insert(String::from("real"), Symbol::Builtin(Type::Float, self.nesting_level));
     }
 }

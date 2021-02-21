@@ -128,7 +128,7 @@ impl NodeVisitor for Interpreter {
         let mut ar = record::ActivationRecord::from(visitable.name.clone(), record::ARType::Procedure, 2);
         
         match &mut visitable.proc_symbol {
-            Some(symbols::Symbol::Procedure(formal_params, block_node)) => {
+            Some(symbols::Symbol::Procedure(formal_params, _, block_node)) => {
                 for (formal, actual) in formal_params.iter_mut().zip(visitable.actual_params.iter_mut()) {
                     let eval_param = actual.accept_visitor(self)?;
                     let eval_param = eval_param.ok_or(RuntimeError::MissingArgument)?;
