@@ -125,10 +125,11 @@ impl NodeVisitor for Interpreter {
     }
 
     fn visit_procedure_call(&mut self, visitable: &mut ProcedureCallNode) -> Result<Option<Literal>, RuntimeError> {
-        let mut ar = record::ActivationRecord::from(visitable.name.clone(), record::ARType::Procedure, 2);
         
         match &mut visitable.proc_symbol {
-            Some(symbols::Symbol::Procedure(formal_params, _, block_node)) => {
+            Some(symbols::Symbol::Procedure(formal_params, level, block_node)) => {
+                let mut ar = record::ActivationRecord::from(visitable.name.clone(), record::ARType::Procedure, *level);
+
                 for (formal, actual) in formal_params.iter_mut().zip(visitable.actual_params.iter_mut()) {
                     let eval_param = actual.accept_visitor(self)?;
                     let eval_param = eval_param.ok_or(RuntimeError::MissingArgument)?;
@@ -136,16 +137,13 @@ impl NodeVisitor for Interpreter {
                 }
 
                 self.push(ar);
-                println!("Procedure block node is {:?}", &block_node);
                 self.visit_block(block_node)?;
-                Ok(())
+                self.pop();
+                Ok(None)
                 
             },
             _ => Err(RuntimeError::MissingProcedure)
-        }?;
-        
-        self.pop();
-        Ok(None)
+        }
     }
 }
 
