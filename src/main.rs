@@ -164,6 +164,31 @@ mod tests {
     }
 
     #[test]
+    fn test_variable_redefinition() {
+        let program = r#"
+            PROGRAM Main;
+
+                PROCEDURE Alpha(a : INTEGER; b : INTEGER);
+                    VAR 
+                        someNum,y : INTEGER;
+                        somenum : REAL;
+                BEGIN
+                    someNum := (a + b ) * 2 + someNum;
+                END;
+
+            BEGIN { Main }
+
+                Alpha(3 + 5, 7);  { procedure call }
+
+            END.  { Main }
+        "#;
+
+        let result = interpret_text(program);
+        assert_eq!(result, Err(RuntimeError::VariableRedefinition("somenum".to_string())));
+    }
+
+
+    #[test]
     fn test_procedure_nested_call() {
         let program = r#"
             PROGRAM Main;
