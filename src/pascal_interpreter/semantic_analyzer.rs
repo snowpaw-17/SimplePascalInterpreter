@@ -140,6 +140,7 @@ impl NodeVisitor for SemanticAnalyzer {
         let proc_name = visitable.name.to_str().unwrap();
         let procedure_symbol = symbols::Symbol::Procedure(params.clone(), self.get_current_scope_level(), visitable.block.clone());
         self.define_symbol(proc_name, procedure_symbol);
+        println!("Defined procedure {} lvl{}", proc_name, self.get_current_scope_level());
     
         let procedure_scope = Rc::from(
             Some(symbols::ScopedSymbolTable::from(proc_name.to_lowercase(), self.get_current_scope_level() + 1, self.current_scope.clone()))
@@ -153,6 +154,10 @@ impl NodeVisitor for SemanticAnalyzer {
 
         self.visit_block(&mut visitable.block)?;
         self.current_scope = self.current_scope.as_ref().as_ref().unwrap().enclosing_scope.clone();
+        
+        let modified_proc_symbol = symbols::Symbol::Procedure(params.clone(), self.get_current_scope_level(), visitable.block.clone());
+        self.define_symbol(proc_name, modified_proc_symbol);
+            
         Ok(None)
     }
 

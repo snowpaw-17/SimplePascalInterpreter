@@ -142,7 +142,7 @@ impl NodeVisitor for Interpreter {
                 Ok(None)
                 
             },
-            _ => Err(RuntimeError::MissingProcedure)
+            _ => Err(RuntimeError::MissingProcedure(String::from(visitable.name.to_str().unwrap_or(""))))
         }
     }
 }

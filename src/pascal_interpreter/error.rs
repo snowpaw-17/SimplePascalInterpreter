@@ -17,5 +17,5 @@ pub enum RuntimeError {
     VariableRedefinition(String),
     StackUnderflow,
     UnsupportedArgumentTypeByOp(Token),
-    MissingProcedure
+    MissingProcedure(String)
 }
