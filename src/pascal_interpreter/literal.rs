@@ -75,9 +75,9 @@ impl Sub for Literal {
     fn sub(self, rhs: Literal) -> Literal {
         match (&self, &rhs) {
             (Literal::Int(x),   Literal::Int(y))    => return Literal::from_int(x - y),
-            (Literal::Float(x), Literal::Float(y))  => return Literal::from_float(x + y), 
-            (Literal::Int(x),   Literal::Float(y))  => return Literal::from_float((*x as f64) + y),
-            (Literal::Float(x), Literal::Int(y))    => return Literal::from_float(x + (*y as f64)),
+            (Literal::Float(x), Literal::Float(y))  => return Literal::from_float(x - y), 
+            (Literal::Int(x),   Literal::Float(y))  => return Literal::from_float((*x as f64) - y),
+            (Literal::Float(x), Literal::Int(y))    => return Literal::from_float(x - (*y as f64)),
             _ => panic!("not implemented for {:?} and {:?}", &self, &rhs),
         }
     }
