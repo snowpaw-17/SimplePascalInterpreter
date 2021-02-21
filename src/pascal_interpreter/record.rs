@@ -2,13 +2,13 @@ use super::literal::Literal;
 use std::collections::HashMap;
 use std::fmt;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ARType{
     Program,
     Procedure,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct ActivationRecord {
     name : Literal,
     record_type: ARType,
@@ -32,6 +32,14 @@ impl ActivationRecord {
 
     pub fn set_item(&mut self, item_name: &str, value: Literal) {
         self.members.insert(item_name.to_lowercase(), value);
+    }
+
+    pub fn get_name(&self) -> &str {
+        return self.name.to_str().unwrap_or("")
+    }
+
+    pub fn get_nesting_level(&self) -> u32 {
+        return self.nesting_level
     }
 }
 
