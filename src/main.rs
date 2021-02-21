@@ -78,30 +78,31 @@ mod tests {
         let program = r#"
             PROGRAM Part12;
                 VAR
-                number : INTEGER;
-                a, b   : INTEGER;
-                y      : REAL;
+                    number : INTEGER;
+                    a, b   : INTEGER;
+                    y      : REAL;
 
                 PROCEDURE P1;
-                VAR
-                a : REAL;
-                k : INTEGER;
-                PROCEDURE P2;
-                VAR
-                    a, z : INTEGER;
-                BEGIN {P2}
-                    z := 777;
-                END;  {P2}
+                    VAR
+                        a : REAL;
+                        k : INTEGER;
+                
+                    PROCEDURE P2;
+                        VAR
+                            a, z : INTEGER;
+                        BEGIN {P2}
+                            z := 777;
+                        END;  {P2}
                 BEGIN {P1}
 
                 END;  {P1}
 
-                BEGIN {Part12}
+            BEGIN {Part12}
                 number := 2;
                 a := number ;
                 b := 10 * a + 10 * number DIV 4;
                 y := 20 / 7 + 3.14
-                END.  {Part12}
+            END.  {Part12}
         "#;
 
         let result = interpret_text(program);
