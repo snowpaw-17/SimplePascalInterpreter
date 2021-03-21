@@ -1,10 +1,6 @@
 use std::collections::HashMap;
 
-use crate::pascal_interpreter::{
-    literal::Literal,
-    token::*,
-    error::RuntimeError,
-};
+use crate::pascal_interpreter::{error::RuntimeError, literal::Literal, token::*};
 
 pub struct Lexer<'a> {
     text: &'a str,
@@ -12,8 +8,8 @@ pub struct Lexer<'a> {
     current_char: Option<char>,
     line: u32,
     col: u32,
-    reserved_keywords: HashMap<String, TokenType>,
-    reserved_symbols: HashMap<char, TokenType>
+    reserved_keywords: HashMap<&'static str, TokenType>,
+    reserved_symbols: HashMap<char, TokenType>,
 }
 
 impl<'a> Lexer<'a> {
@@ -29,8 +25,23 @@ impl<'a> Lexer<'a> {
             line: 1u32,
             col: 1u32,
             reserved_keywords: Lexer::init_reserved_keywords(),
-            reserved_symbols: Lexer::init_reserved_symbols()
+            reserved_symbols: Lexer::init_reserved_symbols(),
         }
+    }
+
+     // Lexical analyzer (tokenizer)
+    pub fn get_next_token(&mut self) -> Result<Token, RuntimeError> {
+        while let Some(ch) = self.current_char {
+            match ch {
+                _ if ch.is_whitespace() => self.skip_whitespace(),
+                '{' => self.skip_comment(),
+                _ if self.reserved_symbols.contains_key(&ch) => return Ok(self.get_reserved_symbol_token()),
+                _ if ch.is_alphabetic() => return Ok(self.get_reserved_keyword_or_identifier()),
+                _ if ch.is_digit(10) => return Ok(self.get_number()),
+                _ => return Err(RuntimeError::UnexpectedChar(ch)),
+            }
+        }
+        Ok(Token::new(TokenType::EOF, Literal::from_str(String::new()), self.line, self.col))
     }
 
     // Advance the `pos` pointer and set the `current_char`
@@ -41,117 +52,95 @@ impl<'a> Lexer<'a> {
         }
 
         self.pos += 1;
-        
         if self.pos >= self.text.len() {
             self.current_char = None;
         } else {
             self.current_char = self.text.chars().nth(self.pos);
-            self.col+= 1;
+            self.col += 1;
         }
     }
 
     fn skip_whitespace(&mut self) {
-        while self.current_char.filter(|c| c.is_whitespace()).is_some() {
+        while let Some(_) = self.current_char.filter(|c| c.is_whitespace()){
             self.advance();
         }
     }
 
-    fn skip_comment(&mut self) {    
-        while self.current_char.filter(|&c| c != '}').is_some() {
+    fn skip_comment(&mut self) {
+        while let Some(_) = self.current_char.filter(|&c| c != '}') {
             self.advance();
         }
         self.advance();
-}
+    }
 
     /// Return an integer consumed from input
     fn get_number(&mut self) -> Token {
-        let mut result = String::new();
-        while self.current_char.filter(|c| c.is_digit(10)).is_some() {
-            result.push(self.current_char.unwrap());
+        let (line, col) = (self.line, self.col);
+        let start_pos = self.pos;
+        while let Some(_) = self.current_char.filter(|c| c.is_digit(10)) {
             self.advance();
         }
 
-        if self.current_char.filter(|&c| c == '.').is_some() {
-            result.push(self.current_char.unwrap());
+        if let Some('.') = self.current_char {
             self.advance();
 
-            while self.current_char.filter(|c| c.is_digit(10)).is_some() {
-                result.push(self.current_char.unwrap());
+            while let Some(_) = self.current_char.filter(|c| c.is_digit(10)) {
                 self.advance();
             }
-            let value = Literal::from_float(result.parse::<f64>().unwrap());
-            return Token::new(TokenType::FloatConst, value, self.line, self.col);
+            let num_as_str = &self.text[start_pos..self.pos];
+            let value = Literal::from_float(num_as_str.parse::<f64>().unwrap());
+            return Token::new(TokenType::FloatConst, value, line, col);
         }
 
-        let value = Literal::from_int(result.parse::<i64>().unwrap());
+        let num_as_str = &self.text[start_pos..self.pos];
+        let value = Literal::from_int(num_as_str.parse::<i64>().unwrap());
         Token::new(TokenType::IntegerConst, value, self.line, self.col)
     }
 
-    fn get_identifier(&mut self) -> String {
-        let mut result = String::new();
-        while self.current_char.filter(|c| c.is_alphanumeric()).is_some() {
-            result.push(self.current_char.unwrap());
+    fn get_identifier(&mut self) -> &'a str {
+        let start_pos = self.pos;
+        while let Some(_) = self.current_char.filter(|c| c.is_alphanumeric() || c == &'_')
+        {
             self.advance();
         }
-        result
-    }
-
-    // Lexical analyzer (tokenizer)
-    pub fn get_next_token(&mut self) -> Result<Token, RuntimeError> {
-        while self.current_char.is_some() {
-            let ch = self.current_char.unwrap();
-            if ch.is_whitespace() {
-                self.skip_whitespace();
-                continue;
-            }
-
-            if ch == '{' {
-                self.skip_comment();
-                continue;
-            }
-
-            if ch.is_digit(10) {
-                return Ok(self.get_number());
-            }
-
-            let entry = self.reserved_symbols.get(&ch); 
-            if entry.is_some() {
-                let result = entry.unwrap().to_owned();
-                self.advance();
-                return Ok(Token::new(result, Literal::from_str(ch.to_string()), self.line, self.col));
-            } 
-            
-            if ch.is_alphabetic() {
-                let identifier = self.get_identifier();
-                let entry = self.reserved_keywords.get(&identifier.to_uppercase()); 
-                let token_type = entry.map(|x| x.to_owned()).unwrap_or(TokenType::Identifier);
-                return Ok(Token::new(token_type, Literal::from_str(identifier), self.line, self.col));   
-            }
-            return Err(RuntimeError::UnexpectedChar(ch));
-        }
-        Ok(Token::new(TokenType::EOF, Literal::from_str(String::new()), self.line, self.col))
+        return &self.text[start_pos..self.pos];
     }
 
     pub fn get_current_char(&self) -> Option<char> {
         self.current_char
     }
 
-    fn init_reserved_keywords() -> HashMap<String, TokenType> {
-        let mut reserved_keywords :  HashMap<String, TokenType> = HashMap::new();
-        reserved_keywords.insert(String::from("BEGIN"), TokenType::Begin);
-        reserved_keywords.insert(String::from("END"), TokenType::End);
-        reserved_keywords.insert(String::from("PROGRAM"), TokenType::Program);
-        reserved_keywords.insert(String::from("VAR"), TokenType::Var);
-        reserved_keywords.insert(String::from("DIV"), TokenType::IntegerDivision);
-        reserved_keywords.insert(String::from("INTEGER"), TokenType::IntegerType);
-        reserved_keywords.insert(String::from("REAL"), TokenType::FloatType);
-        reserved_keywords.insert(String::from("PROCEDURE"), TokenType::Procedure);
-        
+     fn get_reserved_symbol_token(&mut self) -> Token {
+        let (line, col) = (self.line, self.col);
+        let token_type = self.reserved_symbols[&self.current_char.unwrap()];
+        self.advance();
+        Token::new(token_type, Literal::from_str(String::new()), line, col)
+    }
+
+    fn get_reserved_keyword_or_identifier(&mut self) -> Token {
+        let (line, col) = (self.line, self.col);
+        let id = self.get_identifier();
+        let (id, token_type) = self.reserved_keywords
+                            .get_key_value(id.to_uppercase().as_str())
+                            .unwrap_or((&id, &TokenType::Identifier));
+        Token::new(*token_type, Literal::from_str(id.to_string()), line, col)
+    }
+    
+    fn init_reserved_keywords() -> HashMap<&'static str, TokenType> {
+        let mut reserved_keywords: HashMap<&str, TokenType> = HashMap::new();
+        reserved_keywords.insert("BEGIN", TokenType::Begin);
+        reserved_keywords.insert("END", TokenType::End);
+        reserved_keywords.insert("PROGRAM", TokenType::Program);
+        reserved_keywords.insert("VAR", TokenType::Var);
+        reserved_keywords.insert("DIV", TokenType::IntegerDivision);
+        reserved_keywords.insert("INTEGER", TokenType::IntegerType);
+        reserved_keywords.insert("REAL", TokenType::FloatType);
+        reserved_keywords.insert("PROCEDURE", TokenType::Procedure);
         reserved_keywords
-    }  
+    }
 
     fn init_reserved_symbols() -> HashMap<char, TokenType> {
-        let mut reserved_symbols :  HashMap<char, TokenType> = HashMap::new();
+        let mut reserved_symbols: HashMap<char, TokenType> = HashMap::new();
         reserved_symbols.insert('+', TokenType::Plus);
         reserved_symbols.insert('-', TokenType::Minus);
         reserved_symbols.insert('*', TokenType::Multiply);
@@ -164,7 +153,6 @@ impl<'a> Lexer<'a> {
         reserved_symbols.insert('.', TokenType::Dot);
         reserved_symbols.insert(':', TokenType::Colon);
         reserved_symbols.insert(',', TokenType::Comma);
-        
         reserved_symbols
     }
 }
